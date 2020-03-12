@@ -94,7 +94,7 @@ func UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type) (Contests, 
 	q := datastore.NewQuery(kind).
 		Ancestor(ukey).
 		Filter("Applied=", false).
-		Filter("Type=", t).
+		Filter("Type=", int(t)).
 		KeysOnly()
 
 	ks, err := dsClient.GetAll(c, q, nil)
