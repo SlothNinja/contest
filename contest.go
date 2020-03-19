@@ -15,7 +15,7 @@ type Contest struct {
 	c *gin.Context
 	// ID        int64          `gae:"$id"`
 	// Parent    *datastore.Key `gae:"$parent"`
-	Key       *datastore.Key
+	Key       *datastore.Key `datastore:"__key__"`
 	GameID    int64
 	Type      gtype.Type
 	R         float64
@@ -24,6 +24,20 @@ type Contest struct {
 	Applied   bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+func (c *Contest) Load(ps []datastore.Property) error {
+	return datastore.LoadStruct(c, ps)
+}
+
+func (c *Contest) Save() ([]datastore.Property, error) {
+	c.UpdatedAt = time.Now()
+	return datastore.SaveStruct(c)
+}
+
+func (c *Contest) LoadKey(k *datastore.Key) error {
+	c.Key = k
+	return nil
 }
 
 type Result struct {
