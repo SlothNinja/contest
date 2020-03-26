@@ -10,12 +10,12 @@ import (
 
 const kind = "Contest"
 
-type server struct {
+type Client struct {
 	*datastore.Client
 }
 
-func NewClient(dsClient *datastore.Client) server {
-	return server{Client: dsClient}
+func NewClient(dsClient *datastore.Client) Client {
+	return Client{dsClient}
 }
 
 type Contests []*Contest
@@ -80,14 +80,14 @@ func GenContests(c *gin.Context, places Places) (cs Contests) {
 	return
 }
 
-func (svr server) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type) (Contests, error) {
+func (client Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type) (Contests, error) {
 	q := datastore.NewQuery(kind).
 		Ancestor(ukey).
 		Filter("Applied=", false).
 		Filter("Type=", int(t)).
 		KeysOnly()
 
-	ks, err := svr.GetAll(c, q, nil)
+	ks, err := client.GetAll(c, q, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (svr server) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type
 		cs[i] = new(Contest)
 	}
 
-	err = svr.GetMulti(c, ks, cs)
+	err = client.GetMulti(c, ks, cs)
 	if err != nil {
 		return nil, err
 	}
@@ -111,13 +111,13 @@ func (svr server) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type
 
 type ContestMap map[gtype.Type]Contests
 
-func (svr server) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap, error) {
+func (client Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap, error) {
 	q := datastore.NewQuery(kind).
 		Ancestor(ukey).
 		Filter("Applied=", false).
 		KeysOnly()
 
-	ks, err := svr.GetAll(c, q, nil)
+	ks, err := client.GetAll(c, q, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (svr server) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap, er
 		cs[i] = new(Contest)
 	}
 
-	err = svr.GetMulti(c, ks, cs)
+	err = client.GetMulti(c, ks, cs)
 	if err != nil {
 		return nil, err
 	}
