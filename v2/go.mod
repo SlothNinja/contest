@@ -1,4 +1,4 @@
-module github.com/SlothNinja/contest
+module github.com/SlothNinja/contest/v2
 
 require (
 	cloud.google.com/go/datastore v1.1.0
