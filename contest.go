@@ -1,24 +1,37 @@
 package contest
 
 import (
+	"errors"
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/SlothNinja/log"
+	"github.com/SlothNinja/sn"
 	gtype "github.com/SlothNinja/type"
 	"github.com/gin-gonic/gin"
+	"github.com/patrickmn/go-cache"
 )
 
-const kind = "Contest"
+const (
+	kind     = "Contest"
+	msgEnter = "Entering"
+	msgExit  = "Exiting"
+)
+
+var (
+	ErrMissingKey   = errors.New("missing key")
+	ErrNotFound     = errors.New("not found")
+	ErrInvalidCache = errors.New("invalid cached value")
+)
 
 type Client struct {
-	*datastore.Client
+	*sn.Client
 }
 
-func NewClient(dsClient *datastore.Client) Client {
-	return Client{dsClient}
+func NewClient(dsClient *datastore.Client, logger *log.Logger, mcache *cache.Cache) *Client {
+	return &Client{sn.NewClient(dsClient, logger, mcache, nil)}
 }
 
-type Contests []*Contest
 type Contest struct {
 	c         *gin.Context
 	Key       *datastore.Key `datastore:"__key__"`
@@ -54,9 +67,7 @@ type Result struct {
 	Outcome float64
 }
 
-type Results []*Result
-type ResultsMap map[*datastore.Key]Results
-type Places []ResultsMap
+type ResultsMap map[*datastore.Key][]*Result
 
 func New(c *gin.Context, id int64, pk *datastore.Key, gid int64, t gtype.Type, r, rd, outcome float64) *Contest {
 	return &Contest{
@@ -69,7 +80,12 @@ func New(c *gin.Context, id int64, pk *datastore.Key, gid int64, t gtype.Type, r
 	}
 }
 
-func GenContests(c *gin.Context, places Places) (cs Contests) {
+func key(id int64, pk *datastore.Key) *datastore.Key {
+	return datastore.IDKey(kind, id, pk)
+}
+
+func GenContests(c *gin.Context, places []ResultsMap) []*Contest {
+	var cs []*Contest
 	for _, rmap := range places {
 		for ukey, rs := range rmap {
 			for _, r := range rs {
@@ -77,17 +93,20 @@ func GenContests(c *gin.Context, places Places) (cs Contests) {
 			}
 		}
 	}
-	return
+	return cs
 }
 
-func (client Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type) (Contests, error) {
+func (client *Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type) ([]*Contest, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
 	q := datastore.NewQuery(kind).
 		Ancestor(ukey).
 		Filter("Applied=", false).
 		Filter("Type=", int(t)).
 		KeysOnly()
 
-	ks, err := client.GetAll(c, q, nil)
+	ks, err := client.DS.GetAll(c, q, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -97,27 +116,18 @@ func (client Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.T
 		return nil, nil
 	}
 
-	cs := make(Contests, length)
-	for i := range cs {
-		cs[i] = new(Contest)
-	}
-
-	err = client.GetMulti(c, ks, cs)
-	if err != nil {
-		return nil, err
-	}
-	return cs, nil
+	return client.getMulti(c, ks)
 }
 
-type ContestMap map[gtype.Type]Contests
+type ContestMap map[gtype.Type][]*Contest
 
-func (client Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap, error) {
+func (client *Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap, error) {
 	q := datastore.NewQuery(kind).
 		Ancestor(ukey).
 		Filter("Applied=", false).
 		KeysOnly()
 
-	ks, err := client.GetAll(c, q, nil)
+	ks, err := client.DS.GetAll(c, q, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -127,12 +137,7 @@ func (client Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap,
 		return nil, nil
 	}
 
-	cs := make(Contests, length)
-	for i := range cs {
-		cs[i] = new(Contest)
-	}
-
-	err = client.GetMulti(c, ks, cs)
+	cs, err := client.getMulti(c, ks)
 	if err != nil {
 		return nil, err
 	}
@@ -143,4 +148,73 @@ func (client Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap,
 		cm[c.Type] = append(cm[c.Type], c)
 	}
 	return cm, nil
+}
+
+func (client *Client) mcGet(c *gin.Context, k *datastore.Key) (*Contest, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	if k == nil {
+		return nil, ErrMissingKey
+	}
+
+	ek := k.Encode()
+	item, found := client.Cache.Get(ek)
+	if !found {
+		return nil, ErrNotFound
+	}
+
+	contest, ok := item.(*Contest)
+	if !ok {
+		return nil, ErrInvalidCache
+	}
+	return contest, nil
+}
+
+func (client *Client) dsGet(c *gin.Context, k *datastore.Key) (*Contest, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	if k == nil {
+		return nil, ErrMissingKey
+	}
+
+	contest := new(Contest)
+	err := client.DS.Get(c, k, contest)
+	if err != nil {
+		return nil, err
+	}
+
+	client.Cache.SetDefault(k.Encode(), contest)
+	return contest, nil
+}
+
+func (client *Client) get(c *gin.Context, k *datastore.Key) (*Contest, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	contest, err := client.mcGet(c, k)
+	if err != nil {
+		return client.dsGet(c, k)
+	}
+	return contest, nil
+}
+
+func (client *Client) getMulti(c *gin.Context, ks []*datastore.Key) ([]*Contest, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	l, isNil := len(ks), true
+	contests := make([]*Contest, l)
+	me := make(datastore.MultiError, l)
+	for i, k := range ks {
+		contests[i], me[i] = client.get(c, k)
+		if me[i] != nil {
+			isNil = false
+		}
+	}
+	if isNil {
+		return contests, nil
+	}
+	return contests, me
 }
