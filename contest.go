@@ -69,7 +69,7 @@ type Result struct {
 
 type ResultsMap map[*datastore.Key][]*Result
 
-func New(c *gin.Context, id int64, pk *datastore.Key, gid int64, t gtype.Type, r, rd, outcome float64) *Contest {
+func New(id int64, pk *datastore.Key, gid int64, t gtype.Type, r, rd, outcome float64) *Contest {
 	return &Contest{
 		Key:     datastore.IDKey(kind, id, pk),
 		GameID:  gid,
@@ -84,12 +84,24 @@ func key(id int64, pk *datastore.Key) *datastore.Key {
 	return datastore.IDKey(kind, id, pk)
 }
 
+func (client *Client) GenContests(places []ResultsMap) map[*datastore.Key][]*Contest {
+	cs := make(map[*datastore.Key][]*Contest)
+	for _, rmap := range places {
+		for ukey, rs := range rmap {
+			for _, r := range rs {
+				cs[ukey] = append(cs[ukey], New(0, ukey, r.GameID, r.Type, r.R, r.RD, r.Outcome))
+			}
+		}
+	}
+	return cs
+}
+
 func GenContests(c *gin.Context, places []ResultsMap) []*Contest {
 	var cs []*Contest
 	for _, rmap := range places {
 		for ukey, rs := range rmap {
 			for _, r := range rs {
-				cs = append(cs, New(c, 0, ukey, r.GameID, r.Type, r.R, r.RD, r.Outcome))
+				cs = append(cs, New(0, ukey, r.GameID, r.Type, r.R, r.RD, r.Outcome))
 			}
 		}
 	}
