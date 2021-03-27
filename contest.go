@@ -5,11 +5,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
 	gtype "github.com/SlothNinja/type"
 	"github.com/gin-gonic/gin"
-	"github.com/patrickmn/go-cache"
 )
 
 const (
@@ -28,8 +26,8 @@ type Client struct {
 	*sn.Client
 }
 
-func NewClient(dsClient *datastore.Client, logger *log.Logger, mcache *cache.Cache) *Client {
-	return &Client{sn.NewClient(dsClient, logger, mcache, nil)}
+func NewClient(snClient *sn.Client) *Client {
+	return &Client{snClient}
 }
 
 type Contest struct {
