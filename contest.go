@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/SlothNinja/client"
 	"github.com/SlothNinja/sn"
-	gtype "github.com/SlothNinja/type"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,10 +23,10 @@ var (
 )
 
 type Client struct {
-	*sn.Client
+	*client.Client
 }
 
-func NewClient(snClient *sn.Client) *Client {
+func NewClient(snClient *client.Client) *Client {
 	return &Client{snClient}
 }
 
@@ -34,7 +34,7 @@ type Contest struct {
 	c         *gin.Context
 	Key       *datastore.Key `datastore:"__key__"`
 	GameID    int64
-	Type      gtype.Type
+	Type      sn.Type
 	R         float64
 	RD        float64
 	Outcome   float64
@@ -59,7 +59,7 @@ func (c *Contest) LoadKey(k *datastore.Key) error {
 
 type Result struct {
 	GameID  int64
-	Type    gtype.Type
+	Type    sn.Type
 	R       float64
 	RD      float64
 	Outcome float64
@@ -67,7 +67,7 @@ type Result struct {
 
 type ResultsMap map[*datastore.Key][]*Result
 
-func New(id int64, pk *datastore.Key, gid int64, t gtype.Type, r, rd, outcome float64) *Contest {
+func New(id int64, pk *datastore.Key, gid int64, t sn.Type, r, rd, outcome float64) *Contest {
 	return &Contest{
 		Key:     datastore.IDKey(kind, id, pk),
 		GameID:  gid,
@@ -106,7 +106,7 @@ func GenContests(c *gin.Context, places []ResultsMap) []*Contest {
 	return cs
 }
 
-func (client *Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.Type) ([]*Contest, error) {
+func (client *Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t sn.Type) ([]*Contest, error) {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
@@ -129,7 +129,7 @@ func (client *Client) UnappliedFor(c *gin.Context, ukey *datastore.Key, t gtype.
 	return client.getMulti(c, ks)
 }
 
-type ContestMap map[gtype.Type][]*Contest
+type ContestMap map[sn.Type][]*Contest
 
 func (client *Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap, error) {
 	q := datastore.NewQuery(kind).
@@ -152,7 +152,7 @@ func (client *Client) Unapplied(c *gin.Context, ukey *datastore.Key) (ContestMap
 		return nil, err
 	}
 
-	cm := make(ContestMap, len(gtype.Types))
+	cm := make(ContestMap, len(sn.Types))
 	for _, c := range cs {
 		c.Applied = true
 		cm[c.Type] = append(cm[c.Type], c)
