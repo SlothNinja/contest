@@ -88,6 +88,8 @@ github.com/SlothNinja/contest v1.0.7 h1:teTM5d5PoLCj6ewt1W5XG3Wxe/SbMawpNUIO7AQ8
 github.com/SlothNinja/contest v1.0.7/go.mod h1:UCKDi5Wg65PZCzIrZnI7OqBgBUdytHM+efZySDXfqtw=
 github.com/SlothNinja/game/v2 v2.0.2 h1:XDVBkX8rLxtLGwpB85pefw1+w1D6l1DgKXnz8vjWUu0=
 github.com/SlothNinja/game/v2 v2.0.2/go.mod h1:BrXnEo4tTxYNhwJgbVeL+m9oycDoWsO9XsBogda74UY=
+github.com/SlothNinja/game/v2 v2.0.3 h1:hW4idfIU80ce8y/USOlGgmRZAM2hSaLJMSlcPyfXjcA=
+github.com/SlothNinja/game/v2 v2.0.3/go.mod h1:BrXnEo4tTxYNhwJgbVeL+m9oycDoWsO9XsBogda74UY=
 github.com/SlothNinja/gin-render v1.0.0 h1:mxibLS0HX6/Ek7+RcbA2Yvk8VS2wisifuguAgyd+xcY=
 github.com/SlothNinja/gin-render v1.0.0/go.mod h1:tlNalI+QAUXQPOCDxnPF5HkJq/KhhnadKEl/win7Pyw=
 github.com/SlothNinja/glicko v1.0.0 h1:WC/tRr+D+M/NibEBO86IS5IG3y7mTVtU/a4CoMGwGAM=
